@@ -1,15 +1,17 @@
 {% extends "bootstrap/base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
 
 {% block title %}
-Order
+New Product
 {% endblock %}
 
 {% block styles %}
 {{super()}}
-<link rel="stylesheet" href="{{url_for('.static', filename='order.css')}}">
+<link rel="stylesheet" href="{{url_for('.static', filename='login.css')}}">
 {% endblock %}
 
 {% block content %}
+
     <nav class="navbar navbar-inverse navbar-fixed-top">
       <div class="container-fluid">
         <div class="navbar-header">
@@ -27,14 +29,34 @@ Order
             <li><a href="{{ url_for('newproduct') }}">New Product</a></li>
             <li><a href="{{ url_for('profile') }}">Profile</a></li>
             <li><a href="{{ url_for('logout') }}">Log Out</a></li>
-           </ul>
+          </ul>
           <form class="navbar-form navbar-right">
             <input type="text" class="form-control" placeholder="Search...">
           </form>
         </div>
       </div>
     </nav>
-    <h1 class="page-header">Welcome, {{ name }}</h1>
-    <h1> You are a {{ type }}</h1>
 
+    <div class="container">
+
+      <form class="form-login" method="POST" action="/newproduct">
+        <h2 class="form-login-heading">Enter a new product</h2>
+        {{ form.hidden_tag() }}
+        {{ wtf.form_field(form.description) }}
+        {{ wtf.form_field(form.unit) }}
+        {{ wtf.form_field(form.unitprice) }}
+        <button class="btn btn-lg btn-primary btn-block" type="submit">Save</button>
+      </form>
+
+        {% with messages = get_flashed_messages(category_filter=['success']) %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-success" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+    </div> <!-- /container -->
 {% endblock %}

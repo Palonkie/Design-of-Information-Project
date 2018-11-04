@@ -7,18 +7,19 @@ Register
 
 {% block styles %}
 {{super()}}
-<link rel="stylesheet" href="{{url_for('.static', filename='signin.css')}}">
+<link rel="stylesheet" href="{{url_for('.static', filename='login.css')}}">
 {% endblock %}
 
 {% block content %}
     <div class="container">
 
-      <form class="form-register" method="POST" action="/register">
-        <h2 class="form-register-heading">Please Register</h2>
+      <form class="form-login" method="POST" action="/register">
+        <h2 class="form-login-heading">Please Register</h2>
         {{ form.hidden_tag() }}
         {{ wtf.form_field(form.username) }}
         {{ wtf.form_field(form.email) }}
         {{ wtf.form_field(form.password) }}
+        {{ wtf.form_field(form.confirm) }}
         {{ wtf.form_field(form.usertype) }}
         <button class="btn btn-lg btn-primary btn-block" type="submit">Register</button>
       </form>
