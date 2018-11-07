@@ -59,6 +59,14 @@ class Product(db.Model):
     photoID = db.Column(db.Integer)
     isDeleted = db.Column(db.Boolean, default=False, nullable=False)
 
+class Available(db.Model):
+    offerID = db.Column(db.Integer, primary_key=True)
+    productID = db.Column(db.Integer)
+    sellerID = db.Column(db.Integer)
+    day = db.Column(db.DateTime)
+    quantiy = db.Column(db.Float)
+    isDeleted = db.Column(db.Boolean, default=False, nullable=False)
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
