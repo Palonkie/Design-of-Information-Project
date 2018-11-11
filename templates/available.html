@@ -1,12 +1,13 @@
 {% extends "bootstrap/base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
 
 {% block title %}
-Order
+Available
 {% endblock %}
 
 {% block styles %}
 {{super()}}
-<link rel="stylesheet" href="{{url_for('.static', filename='order.css')}}">
+<link rel="stylesheet" href="{{url_for('.static', filename='available.css')}}">
 {% endblock %}
 
 {% block content %}
@@ -37,29 +38,25 @@ Order
 
     <div class="container">
 
-        <h2>Day: {{ day }}</h2>
+      <form class="form-available" method="POST" action="/available">
+        <h2 class="form-available-heading">Enter products available to sell</h2>
+        {{ form.hidden_tag() }}
+        {{ wtf.form_field(form.date) }}
+        {{ wtf.form_field(form.product) }}
+        {{ wtf.form_field(form.quantity) }}
+        {{ wtf.form_field(form.submit, class="btn btn-lg btn-primary btn-block") }}
+      </form>
+
+        <h2 class="form-available-heading">List of available items</h2>
         {% if availablelist %}
         <table class="table">
             <tbody>
                 {% for item in availablelist %}
-                {% if item[0].offerID in ordertotal %}
-                    {% set remaining = item[0].quantity-ordertotal[item[0].offerID] %}
-                {% else %}
-                    {% set remaining = item[0].quantity %}
-                {% endif %}
                 <tr>
-                    <td><img src="/static/img/defaultproduct.png" alt="Product image"></td>
-                    <td>
-                        <table class="table">
-                            <tr><td>{{ item[1].description }}</td></tr>
-                            <tr>
-                                <td>{{ "$%.2f"|format(item[0].offerprice) }} per {{ item[1].unit }}</td>
-                                <td>Available: {{ remaining }} {{item[1].unit}}s</td>
-                                <td><a href="{{ url_for('orderitem', id=item[0].offerID) }}" class="btn btn-primary btn-sm">Place Order</a></td>
-                            </tr>
-                            <tr><td>{{ item[2].boothname }}</td></tr>
-                        </table>
-                    </td>
+                    <td>{{ item[0].day.strftime('%a %b %d') }}</td>
+                    <td>{{ item.description }}</td>
+                    <td>{{ "$%.2f"|format(item[0].offerprice) }} per {{ item.unit }}</td>
+                    <td>Initial quantity: {{ item[0].quantity }} {{item.unit}}s</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -67,5 +64,5 @@ Order
         {% endif %}
 
     </div> <!-- /container -->
-{% endblock %}
 
+{% endblock %}
