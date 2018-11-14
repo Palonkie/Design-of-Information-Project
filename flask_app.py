@@ -123,6 +123,16 @@ class NewProductForm(FlaskForm):
     unit = StringField('Sell-by unit', validators=[InputRequired(), Length(max=20)])
     unitprice = DecimalField('Price ($) per unit', validators=[InputRequired()])
 
+class SelectProductForm(FlaskForm):
+    product = SelectField('Select a product', coerce=int)
+    submitselect = SubmitField('Select')
+
+class EditProductForm(FlaskForm):
+    description = StringField('Product description', validators=[InputRequired(), Length(max=100)])
+    unit = StringField('Sell-by unit', validators=[InputRequired(), Length(max=20)])
+    unitprice = DecimalField('Price ($) per unit', validators=[InputRequired()])
+    submit = SubmitField('Update product information')
+
 class PhotoForm(FlaskForm):
     photo = FileField(validators=[FileRequired()])
     submitphoto = SubmitField('Upload')
@@ -137,6 +147,14 @@ class OrderItemForm(FlaskForm):
     offerid = HiddenField('offerid')
     quantity = DecimalField('Quantity to order', default=0)
     wishlist = DecimalField('Quantity for wish list', default=0)
+
+class DateSelectForm(FlaskForm):
+    date = SelectField('Day')
+    submitdate = SubmitField('Select Date')
+
+class SearchForm(FlaskForm):
+    string = StringField('Search')
+    submitsearch = SubmitField('Search')
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -180,11 +198,46 @@ def order():
         while d.weekday() not in OPENDAYS:
             d = d + datetime.timedelta(1)
         session['day'] = d.strftime('%Y-%m-%d')
-    o = db.session.query(OrderTbl.offerID, db.func.sum(OrderTbl.quantity).label('ordertotal')).group_by(OrderTbl.offerID).all()
-    q = db.session.query(Available, Product, User).join(Product, Available.productID==Product.productID).join(User, Available.sellerID==User.id).filter(Available.day==session['day']).all()
-    # above returns a list of tuples of the table row objects e.g. [(<Available 1>, <Product 2>, <User 1>), (<Available 6>, <Product 3>, <User 2>), ... ]
+        session.modified = True
 
-    return render_template('order.html', availablelist=q, ordertotal=dict(o), day=session['day'])
+    o = db.session.query(OrderTbl.offerID, db.func.sum(OrderTbl.quantity).label('ordertotal')).group_by(OrderTbl.offerID).all()
+
+    if 'ordersearch' in session:
+        q = db.session.query(Available, Product, User).join(Product, Available.productID==Product.productID).join(User, Available.sellerID==User.id).filter(Available.day==session['day'], Product.description.contains(session['ordersearch'])).all()
+        # above returns a list of tuples of the table row objects e.g. [(<Available 1>, <Product 2>, <User 1>), (<Available 6>, <Product 3>, <User 2>), ... ]
+        session.pop('ordersearch', None)
+        session.modified = True
+    else:
+        q = db.session.query(Available, Product, User).join(Product, Available.productID==Product.productID).join(User, Available.sellerID==User.id).filter(Available.day==session['day']).all()
+        # above returns a list of tuples of the table row objects e.g. [(<Available 1>, <Product 2>, <User 1>), (<Available 6>, <Product 3>, <User 2>), ... ]
+
+    form = DateSelectForm()
+    datelist = []
+    d = datetime.date.today()
+    for i in range(14):
+        if d.weekday() in OPENDAYS:
+            datelist.append((d.strftime('%Y-%m-%d'), d.strftime('%a %b %d, %Y')))
+        d = d + datetime.timedelta(1)
+    form.date.choices = datelist
+
+    formsearch = SearchForm()
+
+    if form.submitdate.data and form.validate_on_submit():
+        session['day'] = form.date.data
+        session.modified = True
+        return redirect(url_for('order'))
+
+    if formsearch.submitsearch.data and formsearch.validate_on_submit():
+        if len(formsearch.string.data) > 0:
+            session['ordersearch'] = formsearch.string.data
+            session.modified = True
+            return redirect(url_for('order'))
+        else:
+            if 'ordersearch' in session:
+                session.pop('ordersearch', None)
+            return redirect(url_for('order'))
+
+    return render_template('order.html', availablelist=q, ordertotal=dict(o), day=session['day'], formdate=form, formsearch=formsearch)
 
 @app.route('/logout')
 @login_required
@@ -247,6 +300,68 @@ def newproduct():
 
     return render_template('newproduct.html', form=form)
 
+@app.route('/editproduct', defaults={'id': None}, methods=["GET", "POST"])
+@app.route('/editproduct/<id>', methods=["GET", "POST"])
+@login_required
+def editproduct(id):
+    user = User.query.filter_by(username=current_user.username).first()
+    if user.usertype != 'Seller':
+        return redirect(url_for('notseller'))
+
+    products = Product.query.filter_by(sellerID=user.id).order_by(Product.description).all()
+
+    if products == None:
+        return redirect(url_for('producterror'))
+
+    productlist = [(p.productID, p.description) for p in products]
+
+    formselect = SelectProductForm()
+    formselect.product.choices = productlist
+
+    if id == None:
+        id = productlist[0][0]
+
+    thisproduct = Product.query.filter_by(sellerID=user.id, productID=id).first()
+    if thisproduct:
+            form = EditProductForm(obj=thisproduct)
+    else:
+        return redirect(url_for('producterror'))
+
+    formphoto = PhotoForm()
+    if os.path.exists('mysite/static/img/P' + str(id) + '.png'):
+        photofile = '/static/img/P' + str(id) + ".png?" + str(os.path.getmtime('mysite/static/img/P' + str(id) + '.png'))
+    else:
+        photofile = '/static/img/defaultproduct.png'
+
+    if formselect.submitselect.data and formselect.validate_on_submit():
+        return redirect(url_for('editproduct', id=formselect.product.data))
+    if form.submit.data and form.validate_on_submit():
+        setattr(thisproduct, 'description', form.description.data)
+        setattr(thisproduct, 'unit', form.unit.data)
+        setattr(thisproduct, 'unitprice', form.unitprice.data)
+        db.session.commit()
+        flash('Product information has been updated', 'success')
+        return redirect(url_for('editproduct', id=id))
+    elif formphoto.submitphoto.data and formphoto.validate_on_submit():
+        if 'photo' in request.files:
+            filename = photos.save(request.files['photo'],name='ptemp.')
+            SIZE = (120,90)
+            im = Image.open('mysite/static/img/' + filename)
+            im.convert('RGB')
+            im.thumbnail(SIZE, Image.ANTIALIAS)
+            pad = Image.new('RGBA', SIZE, (255, 255, 255, 0))
+            pad.paste(im, (int((SIZE[0] - im.size[0]) / 2), int((SIZE[1] - im.size[1]) / 2)))
+            pad.save('mysite/static/img/P' + str(id) + '.png', 'PNG')
+            if os.path.exists('mysite/static/img/ptemp.jpg'):
+                os.remove('mysite/static/img/ptemp.jpg')
+            elif os.path.exists('mysite/static/img/ptemp.jpeg'):
+                os.remove('mysite/static/img/ptemp.jpeg')
+            flash('Your photo has been uploaded', 'success')
+            return redirect(url_for('editproduct', id=id))
+
+    return render_template('editproduct.html', form=form, formphoto=formphoto, formselect=formselect, photofile=photofile, id=id)
+
+
 @app.route('/available', methods=["GET", "POST"])
 @login_required
 def available():
@@ -305,9 +420,65 @@ def placeorder():
 
     return redirect(url_for('order'))
 
+@app.route('/cart', methods=["GET", "POST"])
+@login_required
+def cart():
+    user = User.query.filter_by(username=current_user.username).first()
+
+    if 'day' not in session:
+        d = datetime.date.today()
+        while d.weekday() not in OPENDAYS:
+            d = d + datetime.timedelta(1)
+        session['day'] = d.strftime('%Y-%m-%d')
+        session.modified = True
+
+    dayalt=datetime.datetime.strptime(session['day'],'%Y-%m-%d').strftime('%a %b %d, %Y')
+
+    q = (db.session.query(OrderTbl, Available, Product, User)
+        .join(Available, OrderTbl.offerID==Available.offerID)
+        .join(Product, Available.productID==Product.productID)
+        .join(User, Available.sellerID==User.id)
+        .filter(OrderTbl.custID==user.id, OrderTbl.isDeleted==False, Available.day==session['day'])
+        .all())
+    # above returns a list of tuples of the table row objects
+    # e.g. [(<OrderTbl 1>, <Available 1>, <Product 2>, <User 1>), (<OrderTbl 3>, <Available 6>, <Product 3>, <User 2>), ... ]
+
+    form = DateSelectForm()
+    datelist = []
+    d = datetime.date.today()
+    for i in range(14):
+        if d.weekday() in OPENDAYS:
+            datelist.append((d.strftime('%Y-%m-%d'), d.strftime('%a %b %d, %Y')))
+        d = d + datetime.timedelta(1)
+    form.date.choices = datelist
+
+    if form.submitdate.data and form.validate_on_submit():
+        session['day'] = form.date.data
+        session.modified = True
+        return redirect(url_for('cart'))
+
+    return render_template('cart.html', itemlist=q, day=session['day'], dayalt=dayalt, formdate=form)
+
+@app.route('/deleteorderitem/<id>', methods=["GET"])
+@login_required
+def deleteorderitem(id):
+    order = OrderTbl.query.filter_by(orderID=id).first()
+    setattr(order, 'isDeleted', True)
+    db.session.commit()
+
+    return redirect(url_for('cart'))
+
 @app.route('/notseller', methods=["GET", "POST"])
 @login_required
 def notseller():
     if request.method == 'POST':
         return redirect(url_for('order'))
     return render_template('notseller.html')
+
+@app.route('/producterror', methods=["GET", "POST"])
+@login_required
+def producterror():
+    if request.method == 'POST':
+        return redirect(url_for('order'))
+    return render_template('producterror.html')
+

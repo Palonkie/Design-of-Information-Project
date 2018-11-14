@@ -1,7 +1,7 @@
 {% extends "bootstrap/base.html" %}
 
 {% block title %}
-Order
+Cart
 {% endblock %}
 
 {% block styles %}
@@ -18,47 +18,48 @@ Order
             <tbody>
                 <tr>
                     <td>
-                        <form method="POST" action="{{ url_for('order') }}">
+                        <form method="POST" action="{{ url_for('cart') }}">
                             {{ formdate.csrf_token }}
                             {{ formdate.date(class="selectdefault", value=day) }} &nbsp; {{ formdate.submitdate(class="btn btn-primary btn-sm") }}
-                        </form>
-                    </td>
-                    <td>
-                        <form method="POST" action="{{ url_for('order') }}">
-                            {{ formsearch.csrf_token }}
-                            {{ formsearch.string() }} {{ formsearch.submitsearch(class="btn btn-primary btn-sm") }}
                         </form>
                     </td>
                 </tr>
             </tbody>
         </table>
 
-        {% if availablelist %}
+        <!-- objects in query [0]=OrderTbl, [1]=Available, [2]=Product, [3]=User(seller) -->
+        {% if itemlist %}
         <table class="table">
             <tbody>
-                {% for item in availablelist %}
-                {% if item[0].offerID in ordertotal %}
-                    {% set remaining = item[0].quantity-ordertotal[item[0].offerID] %}
-                {% else %}
-                    {% set remaining = item[0].quantity %}
-                {% endif %}
+                <!-- due to a crazy scope issue with jinja variables outside and inside a loop, use this namespace trick -->
+                {% set carttotal = namespace(a=0) %}
+                {% for item in itemlist %}
+                {% set itemtotal = item[0].quantity * item[1].offerprice %}
+                {% set carttotal.a = carttotal.a + itemtotal %}
                 <tr>
                     <td><img src="/static/img/defaultproduct.png" alt="Product image"></td>
                     <td>
                         <table class="table">
-                            <tr><td>{{ item[1].description }}</td></tr>
+                            <tr><td>{{ item[2].description }}</td></tr>
                             <tr>
-                                <td>{{ "$%.2f"|format(item[0].offerprice) }} per {{ item[1].unit }}</td>
-                                <td>Available: {{ remaining }} {{item[1].unit}}s</td>
-                                <td><a href="{{ url_for('orderitem', id=item[0].offerID) }}" class="btn btn-primary btn-sm">Place Order</a></td>
+                                <td>Ordered: {{ item[0].quantity }} {{ item[2].unit }}s @ {{ "$%.2f"|format(item[1].offerprice) }} per {{ item[2].unit }} = {{ "$%.2f"|format(itemtotal) }}</td>
+                                <td><a href="{{ url_for('deleteorderitem', id=item[0].orderID) }}" class="btn btn-primary btn-sm">Delete</a></td>
                             </tr>
-                            <tr><td>{{ item[2].boothname }}</td></tr>
+                            <tr><td>{{ item[3].boothname }}</td></tr>
                         </table>
                     </td>
                 </tr>
                 {% endfor %}
+                <tr>
+                    <td class="pull-right">
+                        Total in cart: {{ "$%.2f"|format(carttotal.a) }}
+                    </td>
+                </tr>
             </tbody>
         </table>
+        {% else %}
+        <h1>Your cart is empty for {{ dayalt }}.</h1>
+        <h1>Use the Order page to select items.</h1>
         {% endif %}
 
     </div> <!-- /container -->

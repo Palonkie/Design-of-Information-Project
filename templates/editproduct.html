@@ -1,0 +1,83 @@
+{% extends "bootstrap/base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}
+Edit Product
+{% endblock %}
+
+{% block styles %}
+{{super()}}
+<link rel="stylesheet" href="{{url_for('.static', filename='login.css')}}">
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <!-- script needed to set the default value in a select form field to a value specified in the field -->
+    <!-- setting the default with form.field.data in flask_app made the selector never select anything but the default -->
+    <script>
+        var els = document.getElementsByClassName("selectdefault");
+        for (i = 0; i < els.length; i++) {
+            els[i].value = els[i].getAttribute('value');
+        }
+    </script>
+    <!-- script to auto-submit the product select form on change - it looks for the name of the select, which is "product" -->
+    <!-- the simulated "click" is needed for form.submit.data to be True in flask - a simple this.form.submit() does not do it -->
+    <script>
+        $(document).ready(function() {
+          $('#product').on('change', function() {
+            var $form = $(this).closest('form');
+            $form.find('input[type=submit]').click();
+          });
+        });
+    </script>
+{% endblock %}
+
+{% block content %}
+    {% include 'topnav.html' %}
+
+   </nav>
+
+    <div class="container">
+      <form class="form-login" method="POST" action="/editproduct">
+        <h2 class="form-login-heading">Edit product</h2>
+        {{ formselect.hidden_tag() }}
+        <!-- select field is auto-submitted using jQuery script - note that this select name is "product", which the script looks for -->
+        {{ wtf.form_field(formselect.product, class="selectdefault form-control", value=id) }}
+        <!-- submit button needs to be present for jQuery to find it, but hide it since it won't be used -->
+        <input id="submitselect" name="submitselect" type="submit" value="Select" hidden="hidden">
+      </form>
+
+      <form class="form-login" method="POST" action="/editproduct/{{ id }}">
+        {{ form.hidden_tag() }}
+        {{ wtf.form_field(form.description) }}
+        {{ wtf.form_field(form.unit) }}
+        {{ wtf.form_field(form.unitprice) }}
+        {{ wtf.form_field(form.submit, class="btn btn-lg btn-primary btn-block") }}
+      </form>
+
+      <form class="form-login" method="POST" enctype="multipart/form-data" action="/editproduct/{{ id }}">
+        <h2 class="form-login-heading">Upload your photo (.jpg or .jpeg only)</h2>
+        {{ formphoto.hidden_tag() }}
+        <div class="form-group">
+            {{ formphoto.photo }}
+        </div>
+        {{ wtf.form_field(formphoto.submitphoto, class="btn btn-lg btn-primary btn-block") }}
+      </form>
+
+      <div class="form-login">
+        <img src="{{ photofile }}" alt="Product photo">
+      </div>
+
+        {% with messages = get_flashed_messages(category_filter=['success']) %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-success" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+
+    </div> <!-- /container -->
+{% endblock %}
