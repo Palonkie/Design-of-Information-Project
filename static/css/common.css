@@ -1,0 +1,27 @@
+body {
+  padding-top: 50px;
+  padding-bottom: 40px;
+  background-color: #eee;
+}
+
+.navbar-fixed-top {
+  border: 0;
+}
+
+.form-sm {
+  max-width: 330px;
+  padding: 15px;
+  margin: 0 auto;
+}
+
+.form-md {
+  max-width: 500px;
+  padding: 15px;
+  margin: 0 auto;
+}
+
+.td-fit,
+.th-fit {
+    white-space: nowrap;
+    width: 1%;
+}

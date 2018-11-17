@@ -7,39 +7,80 @@ Available
 
 {% block styles %}
 {{super()}}
-<link rel="stylesheet" href="{{url_for('.static', filename='available.css')}}">
+<link rel="stylesheet" href="{{ url_for('.static', filename='css/common.css') }}">
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <!-- script needed to set the default value in a select form field to a value specified in the field -->
+    <!-- setting the default with form.field.data in flask_app made the selector never select anything but the default -->
+    <script>
+        var els = document.getElementsByClassName("selectdefault");
+        for (i = 0; i < els.length; i++) {
+            els[i].value = els[i].getAttribute('value');
+        }
+    </script>
+    <!-- script to auto-submit the date select form on change - it looks for the name of the select, which is "date" -->
+    <!-- the simulated "click" is needed for form.submit.data to be True in flask - a simple this.form.submit() does not do it -->
+    <script>
+        $(document).ready(function() {
+          $('#date').on('change', function() {
+            var $form = $(this).closest('form');
+            $form.find('input[type=submit]').click();
+          });
+        });
+    </script>
 {% endblock %}
 
 {% block content %}
     {% include 'topnav.html' %}
 
     <div class="container">
+        <h2 class="form-md">Enter products available to sell</h2>
 
-      <form class="form-available" method="POST" action="/available">
-        <h2 class="form-available-heading">Enter products available to sell</h2>
-        {{ form.hidden_tag() }}
-        {{ wtf.form_field(form.date) }}
-        {{ wtf.form_field(form.product) }}
-        {{ wtf.form_field(form.quantity) }}
-        {{ wtf.form_field(form.submit, class="btn btn-lg btn-primary btn-block") }}
-      </form>
+        <form class="form-md" method="POST" action="{{ url_for('available') }}">
+            {{ formdate.csrf_token }}
+            <!-- select field is auto-submitted using jQuery script - note that this select name is "date", which the script looks for -->
+            <strong>{{ formdate.date.label }}</strong>
+            {{ formdate.date(class="selectdefault form-control", value=day) }}
+            <!-- submit button needs to be present for jQuery to find it, but hide it since it won't be used -->
+            {{ formdate.submitdate(hidden="hidden") }}
+        </form>
 
-        <h2 class="form-available-heading">List of available items</h2>
+        <form class="form-md" method="POST" action="{{ url_for('available') }}">
+            {{ form.hidden_tag() }}
+            {{ wtf.form_field(form.product) }}
+            {{ wtf.form_field(form.quantity) }}
+            {{ wtf.form_field(form.submit, class="btn btn-lg btn-primary btn-block") }}
+        </form>
+
+        <h2>List of items available on {{ dayalt }}</h2>
         {% if availablelist %}
         <table class="table">
             <tbody>
                 {% for item in availablelist %}
-                <tr>
-                    <td>{{ item[0].day.strftime('%a %b %d') }}</td>
-                    <td>{{ item.description }}</td>
-                    <td>{{ "$%.2f"|format(item[0].offerprice) }} per {{ item.unit }}</td>
-                    <td>Initial quantity: {{ item[0].quantity }} {{item.unit}}s</td>
-                </tr>
+                    {% if item.unit.lower()[:2] == "ea" %}
+                        {% set s = "" %}
+                        {% set per = "" %}
+                    {% else %}
+                        {% set s = "s" %}
+                        {% set per = "per " %}
+                    {% endif %}
+                    <tr>
+                        <td><strong>{{ item.description }}</strong></td>
+                        <td>{{ "$%.2f"|format(item[0].offerprice) }} {{ per }}{{ item.unit }}</td>
+                        <td>Initial quantity: {{ item[0].quantity }} {{item.unit}}{{ s }}</td>
+                        <td>
+                            <a href="{{ url_for('editavailable', id=item[0].offerID) }}" class="btn btn-primary btn-sm">Update</a>
+                        </td>
+                    </tr>
                 {% endfor %}
             </tbody>
         </table>
+        {% else %}
+        <div class="alert alert-warning" role="alert">
+            There are no items available to order for this day.
+        </div>
         {% endif %}
-
     </div> <!-- /container -->
-
 {% endblock %}

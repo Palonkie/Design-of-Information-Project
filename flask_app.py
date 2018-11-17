@@ -1,12 +1,12 @@
 import datetime
 import os
-from flask import Flask, redirect, render_template, request, url_for, flash, session
+from flask import Flask, redirect, render_template, request, url_for, flash, session, Markup
 from flask_sqlalchemy import SQLAlchemy
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired
 from wtforms import StringField, PasswordField, BooleanField, SelectField, DecimalField, SubmitField, HiddenField
-from wtforms.validators import InputRequired, Email, Length, EqualTo
+from wtforms.validators import InputRequired, Email, Length, EqualTo, NumberRange
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_uploads import UploadSet, configure_uploads
@@ -121,7 +121,8 @@ class ProfileForm(FlaskForm):
 class NewProductForm(FlaskForm):
     description = StringField('Product description', validators=[InputRequired(), Length(max=100)])
     unit = StringField('Sell-by unit', validators=[InputRequired(), Length(max=20)])
-    unitprice = DecimalField('Price ($) per unit', validators=[InputRequired()])
+    unitprice = DecimalField('Price ($) per unit', validators=[InputRequired(), NumberRange(min=0)])
+    submit = SubmitField('Save product information')
 
 class SelectProductForm(FlaskForm):
     product = SelectField('Select a product', coerce=int)
@@ -130,18 +131,26 @@ class SelectProductForm(FlaskForm):
 class EditProductForm(FlaskForm):
     description = StringField('Product description', validators=[InputRequired(), Length(max=100)])
     unit = StringField('Sell-by unit', validators=[InputRequired(), Length(max=20)])
-    unitprice = DecimalField('Price ($) per unit', validators=[InputRequired()])
+    unitprice = DecimalField('Price ($) per unit', validators=[InputRequired(), NumberRange(min=0)])
     submit = SubmitField('Update product information')
 
 class PhotoForm(FlaskForm):
     photo = FileField(validators=[FileRequired()])
-    submitphoto = SubmitField('Upload')
+    submitphoto = SubmitField('Upload photo')
 
 class AvailableForm(FlaskForm):
-    date = SelectField('On which day will you sell?')
     product = SelectField('Select product to sell', coerce=int)
-    quantity = DecimalField('How many available on this day?', validators=[InputRequired()])
+    quantity = DecimalField('How many available on this day?', validators=[InputRequired(), NumberRange(min=0)])
     submit = SubmitField('Add product to available list')
+
+class EditAvailableForm(FlaskForm):
+    offerid = HiddenField('offerid')
+    date = StringField('Selling on')
+    description = StringField('Product')
+    unit = StringField('Sell-by unit')
+    quantity = DecimalField('Quantity available on this day? (Enter 0 to delete)', validators=[InputRequired(), NumberRange(min=0)])
+    offerprice = DecimalField('Price ($) per unit', validators=[InputRequired(), NumberRange(min=0)])
+    submit = SubmitField('Update information')
 
 class OrderItemForm(FlaskForm):
     offerid = HiddenField('offerid')
@@ -193,6 +202,8 @@ def register():
 @app.route('/order', methods=["GET", "POST"])
 @login_required
 def order():
+    user = User.query.filter_by(username=current_user.username).first()
+
     if 'day' not in session:
         d = datetime.date.today()
         while d.weekday() not in OPENDAYS:
@@ -203,13 +214,26 @@ def order():
     o = db.session.query(OrderTbl.offerID, db.func.sum(OrderTbl.quantity).label('ordertotal')).group_by(OrderTbl.offerID).all()
 
     if 'ordersearch' in session:
-        q = db.session.query(Available, Product, User).join(Product, Available.productID==Product.productID).join(User, Available.sellerID==User.id).filter(Available.day==session['day'], Product.description.contains(session['ordersearch'])).all()
+        q = (db.session.query(Available, Product, User)
+            .join(Product, Available.productID==Product.productID)
+            .join(User, Available.sellerID==User.id)
+            .filter(Available.day==session['day'], Product.description.contains(session['ordersearch']), Available.isDeleted==False)
+            .all())
         # above returns a list of tuples of the table row objects e.g. [(<Available 1>, <Product 2>, <User 1>), (<Available 6>, <Product 3>, <User 2>), ... ]
         session.pop('ordersearch', None)
         session.modified = True
     else:
-        q = db.session.query(Available, Product, User).join(Product, Available.productID==Product.productID).join(User, Available.sellerID==User.id).filter(Available.day==session['day']).all()
+        q = (db.session.query(Available, Product, User)
+            .join(Product, Available.productID==Product.productID)
+            .join(User, Available.sellerID==User.id)
+            .filter(Available.day==session['day'], Available.isDeleted==False)
+            .all())
         # above returns a list of tuples of the table row objects e.g. [(<Available 1>, <Product 2>, <User 1>), (<Available 6>, <Product 3>, <User 2>), ... ]
+
+    cartnum = (db.session.query(OrderTbl, Available)
+        .join(Available, OrderTbl.offerID==Available.offerID)
+        .filter(OrderTbl.custID==user.id, OrderTbl.isDeleted==False, Available.day==session['day'])
+        .count())
 
     form = DateSelectForm()
     datelist = []
@@ -237,7 +261,7 @@ def order():
                 session.pop('ordersearch', None)
             return redirect(url_for('order'))
 
-    return render_template('order.html', availablelist=q, ordertotal=dict(o), day=session['day'], formdate=form, formsearch=formsearch)
+    return render_template('order.html', availablelist=q, ordertotal=dict(o), day=session['day'], formdate=form, formsearch=formsearch, cartnum=cartnum, usertype=current_user.usertype)
 
 @app.route('/logout')
 @login_required
@@ -290,15 +314,17 @@ def newproduct():
     user = User.query.filter_by(username=current_user.username).first()
     if user.usertype != 'Seller':
         return redirect(url_for('notseller'))
+
     form = NewProductForm()
-    if form.validate_on_submit():
+
+    if form.submit.data and form.validate_on_submit():
         new_prod = Product(sellerID=user.id, description=form.description.data, unit=form.unit.data, unitprice=form.unitprice.data, isDeleted=False)
         db.session.add(new_prod)
         db.session.commit()
-        flash('You successfully added ' + form.description.data, 'success')
+        flash(Markup('You successfully added ' + form.description.data + '. You can add a photo on the <strong>Edit Product</strong> page'), 'success')
         return redirect(url_for('newproduct'))
 
-    return render_template('newproduct.html', form=form)
+    return render_template('newproduct.html', form=form, usertype=current_user.usertype)
 
 @app.route('/editproduct', defaults={'id': None}, methods=["GET", "POST"])
 @app.route('/editproduct/<id>', methods=["GET", "POST"])
@@ -359,7 +385,7 @@ def editproduct(id):
             flash('Your photo has been uploaded', 'success')
             return redirect(url_for('editproduct', id=id))
 
-    return render_template('editproduct.html', form=form, formphoto=formphoto, formselect=formselect, photofile=photofile, id=id)
+    return render_template('editproduct.html', form=form, formphoto=formphoto, formselect=formselect, photofile=photofile, id=id, usertype=current_user.usertype)
 
 
 @app.route('/available', methods=["GET", "POST"])
@@ -368,28 +394,114 @@ def available():
     user = User.query.filter_by(username=current_user.username).first()
     if user.usertype != 'Seller':
         return redirect(url_for('notseller'))
+
+    if 'day' not in session:
+        d = datetime.date.today()
+        while d.weekday() not in OPENDAYS:
+            d = d + datetime.timedelta(1)
+        session['day'] = d.strftime('%Y-%m-%d')
+        session.modified = True
+
+    dayalt=datetime.datetime.strptime(session['day'],'%Y-%m-%d').strftime('%a %b %d, %Y')
+
+    formdate = DateSelectForm()
     datelist = []
     d = datetime.date.today()
     for i in range(14):
         if d.weekday() in OPENDAYS:
             datelist.append((d.strftime('%Y-%m-%d'), d.strftime('%a %b %d, %Y')))
         d = d + datetime.timedelta(1)
+    formdate.date.choices = datelist
+    formdate.date.label = "On which day will you sell?"
+
     products = Product.query.filter_by(sellerID=user.id).order_by(Product.description).all()
-    productlist = [(p.productID, p.description + ' - $' + '%.2f' % p.unitprice + ' per ' + p.unit) for p in products]
+    productlist = []
+    for p in products:
+        if p.unit.lower()[:2] == "ea":
+            productlist.append((p.productID, p.description + ' - $' + '%.2f' % p.unitprice + ' ' + p.unit))
+        else:
+            productlist.append((p.productID, p.description + ' - $' + '%.2f' % p.unitprice + ' per ' + p.unit))
+
     form = AvailableForm()
-    form.date.choices = datelist
     form.product.choices = productlist
-    availablelist = Available.query.filter_by(sellerID=user.id).join(Product, Available.productID==Product.productID).add_columns(Product.description, Product.unit).all()
-    # above returns a list of tuples of the Available row objects and the added columns e.g. [(<Available 1>, .description, .unit), (<Available 6>, .description, .unit), ... ]
+
+    availablelist = (Available.query
+        .filter_by(sellerID=user.id, day=session['day'], isDeleted=False)
+        .join(Product, Available.productID==Product.productID)
+        .add_columns(Product.description, Product.unit, Product.productID)
+        .order_by(Product.description)
+        .all())
+    # above returns a list of tuples of the Available row objects and the added columns e.g. [(<Available 1>, .description, .unit, .productID), (<Available 6>, .description, .unit, .productID), ... ]
+
     if form.submit.data and form.validate_on_submit():
         p = Product.query.filter_by(productID=form.product.data).first()
-        new_available = Available(productID=form.product.data, sellerID=user.id, day=datetime.datetime.strptime(form.date.data,'%Y-%m-%d'), quantity=form.quantity.data, offerprice=p.unitprice, isDeleted=False)
+        new_available = Available(productID=form.product.data, sellerID=user.id, day=datetime.datetime.strptime(session['day'],'%Y-%m-%d'), quantity=form.quantity.data, offerprice=p.unitprice, isDeleted=False)
         db.session.add(new_available)
         db.session.commit()
         flash('You successfully added a product', 'success')
         return redirect(url_for('available'))
 
-    return render_template('available.html', form=form, availablelist=availablelist)
+    if formdate.submitdate.data and formdate.validate_on_submit():
+        session['day'] = formdate.date.data
+        session.modified = True
+        return redirect(url_for('available'))
+
+    return render_template('available.html', form=form, formdate=formdate, availablelist=availablelist, day=session['day'], dayalt=dayalt, usertype=current_user.usertype)
+
+@app.route('/editavailable/<id>', methods=["GET", "POST"])
+@login_required
+def editavailable(id):
+    user = User.query.filter_by(username=current_user.username).first()
+    if user.usertype != 'Seller':
+        return redirect(url_for('notseller'))
+
+    available = (Available.query
+        .filter_by(offerID=id)
+        .join(Product, Available.productID==Product.productID)
+        .add_columns(Product.description, Product.unit)
+        .first())
+    # above returns a tuple of the Available product and the added columns e.g. (<Available>, .description, .unit)
+
+    ordered = (db.session.query(db.func.sum(OrderTbl.quantity).label('quantity'))
+        .filter(OrderTbl.offerID==id)
+        .first())
+
+    if ordered[0] is None:
+        orderedqty = 0
+    else:
+        orderedqty = ordered[0]
+
+    dayalt=available[0].day.strftime('%a %b %d, %Y')
+
+    form = EditAvailableForm()
+    if request.method == 'GET':
+        form.offerid.data = id
+        form.date.data = dayalt
+        form.description.data = available.description
+        form.unit.data = available.unit
+        form.quantity.data = available[0].quantity
+        form.offerprice.data = available[0].offerprice
+
+    if form.submit.data and form.validate_on_submit():
+        print(form.quantity.data)
+        print(orderedqty)
+        availableitem = Available.query.filter_by(offerID=form.offerid.data).first()
+        if int(form.quantity.data) == 0 and int(orderedqty) == 0:
+            setattr(availableitem, 'quantity', form.quantity.data)
+            setattr(availableitem, 'offerprice', form.offerprice.data)
+            setattr(availableitem, 'isDeleted', True)
+            db.session.commit()
+            return redirect(url_for('available'))
+        if float(form.quantity.data) < float(orderedqty):
+            flash('Quantity cannot be less than already ordered quantity of ' + str(orderedqty), 'error')
+            return redirect(url_for('editavailable', id=form.offerid.data))
+        else:
+            setattr(availableitem, 'quantity', form.quantity.data)
+            setattr(availableitem, 'offerprice', form.offerprice.data)
+            db.session.commit()
+            return redirect(url_for('available'))
+
+    return render_template('editavailable.html', form=form, id=id, usertype=current_user.usertype)
 
 @app.route('/orderitem/<id>', methods=["GET"])
 @login_required
@@ -406,7 +518,7 @@ def orderitem(id):
 
     form = OrderItemForm()
 
-    return render_template('orderitem.html', available=available, product=product, seller=seller, remaining=remaining, form=form)
+    return render_template('orderitem.html', available=available, product=product, seller=seller, remaining=remaining, form=form, usertype=current_user.usertype)
 
 @app.route('/placeorder', methods=["POST"])
 @login_required
@@ -457,7 +569,111 @@ def cart():
         session.modified = True
         return redirect(url_for('cart'))
 
-    return render_template('cart.html', itemlist=q, day=session['day'], dayalt=dayalt, formdate=form)
+    return render_template('cart.html', itemlist=q, day=session['day'], dayalt=dayalt, formdate=form, usertype=current_user.usertype)
+
+@app.route('/ordersummary', methods=["GET", "POST"])
+@login_required
+def ordersummary():
+    user = User.query.filter_by(username=current_user.username).first()
+    if user.usertype != 'Seller':
+        return redirect(url_for('notseller'))
+
+    if 'day' not in session:
+        d = datetime.date.today()
+        while d.weekday() not in OPENDAYS:
+            d = d + datetime.timedelta(1)
+        session['day'] = d.strftime('%Y-%m-%d')
+        session.modified = True
+
+    dayalt=datetime.datetime.strptime(session['day'],'%Y-%m-%d').strftime('%a %b %d, %Y')
+
+    q = (db.session.query(
+        OrderTbl.quantity,
+        OrderTbl.wishlist,
+        Available.quantity.label('initial'),
+        Available.offerprice,
+        Product.productID,
+        Product.description,
+        Product.unit,
+        (OrderTbl.quantity * Available.offerprice).label('itemtotal'))
+        .join(Available, OrderTbl.offerID==Available.offerID)
+        .join(Product, Available.productID==Product.productID)
+        .filter(Available.sellerID==user.id, OrderTbl.isDeleted==False, Available.day==session['day'])
+        .subquery())
+
+    qq = (db.session.query(
+        db.func.sum(q.c.quantity).label('quantity'),
+        db.func.sum(q.c.wishlist).label('wishlist'),
+        q.c.initial,
+        q.c.offerprice,
+        q.c.productID,
+        q.c.description,
+        q.c.unit,
+        db.func.sum(q.c.itemtotal).label('itemtotal'))
+        .group_by(q.c.initial, q.c.offerprice, q.c.productID, q.c.description, q.c.unit)
+        .all())
+
+    form = DateSelectForm()
+    datelist = []
+    d = datetime.date.today()
+    for i in range(14):
+        if d.weekday() in OPENDAYS:
+            datelist.append((d.strftime('%Y-%m-%d'), d.strftime('%a %b %d, %Y')))
+        d = d + datetime.timedelta(1)
+    form.date.choices = datelist
+
+    if form.submitdate.data and form.validate_on_submit():
+        session['day'] = form.date.data
+        session.modified = True
+        return redirect(url_for('ordersummary'))
+
+    return render_template('ordersummary.html', summarylist=qq, day=session['day'], formdate=form, usertype=current_user.usertype, store=current_user.boothname, dayalt=dayalt)
+
+@app.route('/orderdetail', methods=["GET", "POST"])
+@login_required
+def orderdetail():
+    user = User.query.filter_by(username=current_user.username).first()
+    if user.usertype != 'Seller':
+        return redirect(url_for('notseller'))
+
+    if 'day' not in session:
+        d = datetime.date.today()
+        while d.weekday() not in OPENDAYS:
+            d = d + datetime.timedelta(1)
+        session['day'] = d.strftime('%Y-%m-%d')
+        session.modified = True
+
+    dayalt=datetime.datetime.strptime(session['day'],'%Y-%m-%d').strftime('%a %b %d, %Y')
+
+    q = (db.session.query(
+        OrderTbl.quantity,
+        OrderTbl.wishlist,
+        Available.offerprice,
+        Product.description,
+        Product.unit,
+        (OrderTbl.quantity * Available.offerprice).label('itemtotal'),
+        User.name)
+        .join(Available, OrderTbl.offerID==Available.offerID)
+        .join(Product, Available.productID==Product.productID)
+        .join(User, OrderTbl.custID==User.id)
+        .filter(Available.sellerID==user.id, OrderTbl.isDeleted==False, Available.day==session['day'])
+        .all())
+
+    form = DateSelectForm()
+    datelist = []
+    d = datetime.date.today()
+    for i in range(14):
+        if d.weekday() in OPENDAYS:
+            datelist.append((d.strftime('%Y-%m-%d'), d.strftime('%a %b %d, %Y')))
+        d = d + datetime.timedelta(1)
+    form.date.choices = datelist
+
+    if form.submitdate.data and form.validate_on_submit():
+        session['day'] = form.date.data
+        session.modified = True
+        return redirect(url_for('orderdetail'))
+
+    return render_template('orderdetail.html', detaillist=q, day=session['day'], formdate=form, usertype=current_user.usertype, store=current_user.boothname, dayalt=dayalt)
 
 @app.route('/deleteorderitem/<id>', methods=["GET"])
 @login_required
@@ -473,12 +689,15 @@ def deleteorderitem(id):
 def notseller():
     if request.method == 'POST':
         return redirect(url_for('order'))
-    return render_template('notseller.html')
+    return render_template('notseller.html', usertype=current_user.usertype)
 
 @app.route('/producterror', methods=["GET", "POST"])
 @login_required
 def producterror():
     if request.method == 'POST':
         return redirect(url_for('order'))
-    return render_template('producterror.html')
+    return render_template('producterror.html', usertype=current_user.usertype)
 
+@app.route('/test', methods=["GET"])
+def test():
+    return render_template('test.html')

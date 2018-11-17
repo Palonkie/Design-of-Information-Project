@@ -1,0 +1,33 @@
+{% extends "bootstrap/base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}
+Edit Profile
+{% endblock %}
+
+{% block styles %}
+{{super()}}
+<style>
+body {
+  padding-top: 40px;
+  padding-bottom: 40px;
+  background-color: #eee;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <div class="row">
+            <div class="col-sm-6">
+                One of three columns
+            </div>
+            <div class="col-sm-2">
+                One of three columns
+            </div>
+            <div class="col-sm-2">
+                One of three columns
+            </div>
+        </div>
+    </div> <!-- /container -->
+{% endblock %}

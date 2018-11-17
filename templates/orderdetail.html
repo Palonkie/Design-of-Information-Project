@@ -1,7 +1,7 @@
 {% extends "bootstrap/base.html" %}
 
 {% block title %}
-Cart
+Order Detail
 {% endblock %}
 
 {% block styles %}
@@ -35,12 +35,12 @@ Cart
     {% include 'topnav.html' %}
 
     <div class="container">
-        <h2>Shopping Cart</h2>
+        <h2>Order Details</h2>
         <table class="table">
             <tbody>
                 <tr>
                     <td>
-                         <form class="form-inline" method="POST" action="{{ url_for('cart') }}">
+                        <form class="form-inline" method="POST" action="{{ url_for('orderdetail') }}">
                             {{ formdate.csrf_token }}
                             <!-- select field is auto-submitted using jQuery script - note that this select name is "date", which the script looks for -->
                             Which day? &nbsp; {{ formdate.date(class="selectdefault form-control", value=day) }}
@@ -52,45 +52,37 @@ Cart
             </tbody>
         </table>
 
-        <!-- objects in query [0]=OrderTbl, [1]=Available, [2]=Product, [3]=User(seller) -->
-        {% if itemlist %}
-        <table class="table">
+        {% if detaillist %}
+        <h2>Orders for {{ store }} on {{ dayalt }}</h2>
+        <table class="table table-bordered">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Product</th>
+                <th>Sell-by unit</th>
+                <th>Reserved quantity</th>
+                <th>Wish list quantity</th>
+                <th>Unit price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
             <tbody>
-                <!-- due to a crazy scope issue with jinja variables outside and inside a loop, use this namespace trick -->
-                {% set carttotal = namespace(a=0) %}
-                {% for item in itemlist %}
-                    {% set itemtotal = item[0].quantity * item[1].offerprice %}
-                    {% set carttotal.a = carttotal.a + itemtotal %}
-                    {% if item[2].unit.lower()[:2] == "ea" %}
-                        {% set s = "" %}
-                        {% set per = "" %}
-                    {% else %}
-                        {% set s = "s" %}
-                        {% set per = "per " %}
-                    {% endif %}
-                    <tr>
-                        <td class="td-fit"><img src="/static/img/P{{ item[2].productID }}.png" onerror="/static/img/defaultproduct.png" /></td>
-                        <td>
-                            <strong>{{ item[2].description }}</strong><br>
-                            Ordered: {{ item[0].quantity }} {{ item[2].unit }}{{ s }} @ {{ "$%.2f"|format(item[1].offerprice) }} {{ per}}{{ item[2].unit }} = {{ "$%.2f"|format(itemtotal) }}<br>
-                            <small>{{ item[3].boothname }}</small>
-                        </td>
-                        <td>
-                            &nbsp;<br><a href="{{ url_for('deleteorderitem', id=item[0].orderID) }}" class="btn btn-primary btn-sm">Delete</a>
-                        </td>
-                    </tr>
-                {% endfor %}
+                {% for item in detaillist %}
                 <tr>
-                    <td>&nbsp;</td>
-                    <td>
-                        <strong>Total in cart: {{ "$%.2f"|format(carttotal.a) }}</strong>
-                    </td>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.description }}</td>
+                    <td>{{ item.unit }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.wishlist }}</td>
+                    <td>{{ "$%.2f"|format(item.offerprice) }}</td>
+                    <td>{{ "$%.2f"|format(item.itemtotal) }}</td>
                 </tr>
+                {% endfor %}
             </tbody>
         </table>
         {% else %}
         <div class="alert alert-warning" role="alert">
-            Your cart is empty.  Go to the Order page to select items for <strong>{{ dayalt }}</strong>.
+            There are no orders for this day.
         </div>
         {% endif %}
 

@@ -7,22 +7,21 @@ New Product
 
 {% block styles %}
 {{super()}}
-<link rel="stylesheet" href="{{url_for('.static', filename='login.css')}}">
+<link rel="stylesheet" href="{{url_for('.static', filename='/css/common.css')}}">
 {% endblock %}
 
 {% block content %}
     {% include 'topnav.html' %}
 
     <div class="container">
-
-      <form class="form-login" method="POST" action="/newproduct">
-        <h2 class="form-login-heading">Enter a new product</h2>
-        {{ form.hidden_tag() }}
-        {{ wtf.form_field(form.description) }}
-        {{ wtf.form_field(form.unit) }}
-        {{ wtf.form_field(form.unitprice) }}
-        <button class="btn btn-lg btn-primary btn-block" type="submit">Save</button>
-      </form>
+        <form class="form-md" method="POST" action="/newproduct">
+            <h2 class="form-login-heading">Enter a new product</h2>
+            {{ form.hidden_tag() }}
+            {{ wtf.form_field(form.description) }}
+            {{ wtf.form_field(form.unit) }}
+            {{ wtf.form_field(form.unitprice) }}
+            {{ wtf.form_field(form.submit, class="btn btn-lg btn-primary btn-block") }}
+        </form>
 
         {% with messages = get_flashed_messages(category_filter=['success']) %}
         {% if messages %}
@@ -33,6 +32,5 @@ New Product
             {% endfor %}
         {% endif %}
         {% endwith %}
-
     </div> <!-- /container -->
 {% endblock %}

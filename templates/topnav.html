@@ -1,20 +1,19 @@
 <nav class="navbar navbar-inverse navbar-fixed-top">
   <div class="container-fluid">
     <div class="navbar-header">
-      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-        <span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
-      <a class="navbar-brand" href="#">Farmers Market Portal</a>
+      <a class="navbar-brand" href="{{ url_for('order') }}">Blacksburg Farmers Market Portal</a>
     </div>
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav navbar-right">
         <li><a href="{{ url_for('order') }}">Order</a></li>
         <li><a href="{{ url_for('cart') }}">Cart</a></li>
-        <li><a href="{{ url_for('newproduct') }}">New Product</a></li>
-        <li><a href="{{ url_for('available') }}">Available</a></li>
+        {% if usertype == "Seller" %}
+            <li><a href="{{ url_for('newproduct') }}">New Product</a></li>
+            <li><a href="{{ url_for('editproduct') }}">Edit Product</a></li>
+            <li><a href="{{ url_for('available') }}">Available Products</a></li>
+            <li><a href="{{ url_for('ordersummary') }}">Order Summary</a></li>
+            <li><a href="{{ url_for('orderdetail') }}">Order Detail</a></li>
+        {% endif %}
         <li><a href="{{ url_for('profile') }}">Profile</a></li>
         <li><a href="{{ url_for('logout') }}">Log Out</a></li>
        </ul>

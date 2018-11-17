@@ -6,28 +6,58 @@ Order
 
 {% block styles %}
 {{super()}}
-<link rel="stylesheet" href="{{url_for('.static', filename='order.css')}}">
+<link rel="stylesheet" href="{{ url_for('.static', filename='css/common.css') }}">
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <!-- script needed to set the default value in a select form field to a value specified in the field -->
+    <!-- setting the default with form.field.data in flask_app made the selector never select anything but the default -->
+    <script>
+        var els = document.getElementsByClassName("selectdefault");
+        for (i = 0; i < els.length; i++) {
+            els[i].value = els[i].getAttribute('value');
+        }
+    </script>
+    <!-- script to auto-submit the date select form on change - it looks for the name of the select, which is "date" -->
+    <!-- the simulated "click" is needed for form.submit.data to be True in flask - a simple this.form.submit() does not do it -->
+    <script>
+        $(document).ready(function() {
+          $('#date').on('change', function() {
+            var $form = $(this).closest('form');
+            $form.find('input[type=submit]').click();
+          });
+        });
+    </script>
 {% endblock %}
 
 {% block content %}
     {% include 'topnav.html' %}
 
     <div class="container">
-
+        <h2>Order Form</h2>
         <table class="table">
             <tbody>
                 <tr>
                     <td>
-                        <form method="POST" action="{{ url_for('order') }}">
+                         <form class="form-inline" method="POST" action="{{ url_for('order') }}">
                             {{ formdate.csrf_token }}
-                            {{ formdate.date(class="selectdefault", value=day) }} &nbsp; {{ formdate.submitdate(class="btn btn-primary btn-sm") }}
+                            <!-- select field is auto-submitted using jQuery script - note that this select name is "date", which the script looks for -->
+                            Which day? &nbsp; {{ formdate.date(class="selectdefault form-control", value=day) }}
+                            <!-- submit button needs to be present for jQuery to find it, but hide it since it won't be used -->
+                            {{ formdate.submitdate(hidden="hidden") }}
                         </form>
                     </td>
                     <td>
-                        <form method="POST" action="{{ url_for('order') }}">
+                        <form class="form-inline" method="POST" action="{{ url_for('order') }}">
                             {{ formsearch.csrf_token }}
-                            {{ formsearch.string() }} {{ formsearch.submitsearch(class="btn btn-primary btn-sm") }}
+                            {{ formsearch.string(class="form-control") }} {{ formsearch.submitsearch(class="btn btn-primary btn-sm") }}
                         </form>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('cart') }}" style="text-decoration: none; color: black;">
+                            Cart <img src="/static/img/shopping-cart-24.png" /> {{ cartnum }}
+                        </a>
                     </td>
                 </tr>
             </tbody>
@@ -37,39 +67,36 @@ Order
         <table class="table">
             <tbody>
                 {% for item in availablelist %}
-                {% if item[0].offerID in ordertotal %}
-                    {% set remaining = item[0].quantity-ordertotal[item[0].offerID] %}
-                {% else %}
-                    {% set remaining = item[0].quantity %}
-                {% endif %}
-                <tr>
-                    <td><img src="/static/img/defaultproduct.png" alt="Product image"></td>
-                    <td>
-                        <table class="table">
-                            <tr><td>{{ item[1].description }}</td></tr>
-                            <tr>
-                                <td>{{ "$%.2f"|format(item[0].offerprice) }} per {{ item[1].unit }}</td>
-                                <td>Available: {{ remaining }} {{item[1].unit}}s</td>
-                                <td><a href="{{ url_for('orderitem', id=item[0].offerID) }}" class="btn btn-primary btn-sm">Place Order</a></td>
-                            </tr>
-                            <tr><td>{{ item[2].boothname }}</td></tr>
-                        </table>
-                    </td>
-                </tr>
+                    {% if item[0].offerID in ordertotal %}
+                        {% set remaining = item[0].quantity-ordertotal[item[0].offerID] %}
+                    {% else %}
+                        {% set remaining = item[0].quantity %}
+                    {% endif %}
+                    {% if item[1].unit.lower()[:2] == "ea" %}
+                        {% set s = "" %}
+                        {% set per = "" %}
+                    {% else %}
+                        {% set s = "s" %}
+                        {% set per = "per " %}
+                    {% endif %}
+                    <tr>
+                        <td class="td-fit"><img src="/static/img/P{{ item[1].productID }}.png" onerror="this.src='/static/img/defaultproduct.png'" /></td>
+                        <td>
+                            <strong>{{ item[1].description }}</strong><br>
+                            {{ "$%.2f"|format(item[0].offerprice) }} {{ per}}{{ item[1].unit }}<br>
+                            <small>{{ item[2].boothname }}</small></td>
+                        <td>&nbsp;<br>Available: {{ remaining }} {{item[1].unit}}{{ s }}</td>
+                        <td>&nbsp;<br><a href="{{ url_for('orderitem', id=item[0].offerID) }}" class="btn btn-primary btn-sm">Place Order</a></td>
+                    </tr>
                 {% endfor %}
             </tbody>
         </table>
+        {% else %}
+        <div class="alert alert-warning" role="alert">
+            There are no items available to order for this day.
+        </div>
         {% endif %}
 
     </div> <!-- /container -->
-
-    <!-- script needed to set a the default date in the date selector to the date used to filter data for the page -->
-    <!-- setting the default with form.date.data in flask_app made the selector never select anything but the default -->
-    <script>
-        var els = document.getElementsByClassName("selectdefault");
-        for (i = 0; i < els.length; i++) {
-            els[i].value = els[i].getAttribute('value');
-        }
-    </script>
 {% endblock %}
 

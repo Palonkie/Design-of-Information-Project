@@ -1,0 +1,3 @@
+MySQL to add 1 week to test data dates to avoid having to keep adding new test data
+
+update available set day = date_add(day, interval 1 week);

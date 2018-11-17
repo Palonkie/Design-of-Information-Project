@@ -1,0 +1,41 @@
+{% extends "bootstrap/base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}
+Edit Available
+{% endblock %}
+
+{% block styles %}
+{{super()}}
+<link rel="stylesheet" href="{{url_for('.static', filename='css/common.css')}}">
+{% endblock %}
+
+{% block content %}
+    {% include 'topnav.html' %}
+
+    <div class="container">
+
+        <form class="form-md" method="POST" action="/editavailable/{{ id }}">
+            <h2>Edit an available product</h2>
+            {{ form.csrf_token }}
+            {{ form.offerid }}
+            {{ wtf.form_field(form.date, disabled=True) }}
+            {{ wtf.form_field(form.description, disabled=True) }}
+            {{ wtf.form_field(form.unit, disabled=True) }}
+            {{ wtf.form_field(form.offerprice) }}
+            {{ wtf.form_field(form.quantity) }}
+            {{ wtf.form_field(form.submit, class="btn btn-lg btn-primary btn-block") }}
+        </form>
+
+        {% with messages = get_flashed_messages(category_filter=['error']) %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-danger" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+    </div> <!-- /container -->
+{% endblock %}

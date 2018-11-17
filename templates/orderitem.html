@@ -7,7 +7,7 @@ Order Item
 
 {% block styles %}
 {{super()}}
-<link rel="stylesheet" href="{{url_for('.static', filename='login.css')}}">
+<link rel="stylesheet" href="{{url_for('.static', filename='css/common.css')}}">
 {% endblock %}
 
 {% block content %}
@@ -16,37 +16,37 @@ Order Item
     <div class="container">
 
         <h2 class="form-available-heading">Order an item</h2>
+
         <table class="table">
             <tbody>
                 <tr>
-                    <td>{{ product.description }}</td>
-                </tr>
-                <tr>
-                    <td>{{ seller.boothname }}</td>
-                </tr>
-                <tr>
-                    <td>{{ "$%.2f"|format(available.offerprice) }} per {{ product.unit }}</td>
-                </tr>
-                <tr>
-                    <td>Available: {{ remaining }} of {{ available.quantity}} {{ product.unit }}s</td>
-                </tr>
-                <tr>
-                    <td>For purchase on: {{ available.day.strftime('%a %b %d') }}</td>
+                    <td class="td-fit"><img src="/static/img/P{{ product.productID }}.png" onerror="this.src='/static/img/defaultproduct.png'" /></td>
+                    <td>
+                        <strong>{{ product.description }}</strong><br>
+                        {{ "$%.2f"|format(available.offerprice) }} per {{ product.unit }}<br>
+                        <small>{{ seller.boothname }}</small>
+                    </td>
+                    <td>
+                        &nbsp;<br>
+                        Available: {{ remaining }} of {{ available.quantity }} {{product.unit}}s<br>
+                        For purchase on: <strong>{{ available.day.strftime('%a %b %d') }}</strong>
+                    </td>
+                    <td>
+                        &nbsp;<br>
+                        <form class="form-inline" method="POST" action="{{ url_for('placeorder') }}">
+                            {{ form.csrf_token }}
+                            {{ form.offerid(value=available.offerID) }}
+                            {% if remaining > 0 %}
+                            Quantity: {{ form.quantity(class='form-control', type='number', min=1, max=remaining, step=1, value=1) }} {{ product.unit }}
+                            {% else %}
+                            Wishlist: {{ form.wishlist(class='form-control', type='number', min=1, step=1, value=1) }} {{ product.unit }}
+                            {% endif %}
+                            <button type="submit" class="btn btn-primary">Place order</button>
+                        </form>
+                    </td>
                 </tr>
             </tbody>
         </table>
-
-        <form class="form-login" method="POST" action="{{ url_for('placeorder') }}">
-            {{ form.csrf_token }}
-            {{ form.offerid(value=available.offerID) }}
-            {% if remaining > 0 %}
-            Quantity: {{ form.quantity(class='form-control', type='number', min=1, max=remaining, step=1, value=1) }}
-            {% else %}
-            Wishlist: {{ form.wishlist(class='form-control', type='number', min=1, step=1, value=1) }}
-            {% endif %}
-            <button type="submit" class="btn btn-primary">Place order</button>
-        </form>
-
 
         {% with messages = get_flashed_messages(category_filter=['success']) %}
         {% if messages %}

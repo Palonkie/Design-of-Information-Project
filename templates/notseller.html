@@ -7,11 +7,14 @@ Not Seller
 
 {% block styles %}
 {{super()}}
-<link rel="stylesheet" href="{{url_for('.static', filename='login.css')}}">
+<link rel="stylesheet" href="{{url_for('.static', filename='css/common.css')}}">
 {% endblock %}
 
 {% block content %}
+    {% include 'topnav.html' %}
+
     <div class="container">
+        <h2>Not a seller</h2>
 
         <div class="alert alert-warning" role="alert">
                 You must be registered as a seller to perform this function
