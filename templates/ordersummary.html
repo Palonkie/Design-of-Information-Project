@@ -29,6 +29,11 @@ Order Summary
           });
         });
     </script>
+    <script>
+        $('.navbar').affix({
+          offset: {top: 100}
+        });
+    </script>
 {% endblock %}
 
 {% block content %}
@@ -88,14 +93,6 @@ Order Summary
         {% endif %}
 
     </div> <!-- /container -->
-
-    <!-- script needed to set a the default date in the date selector to the date used to filter data for the page -->
-    <!-- setting the default with form.date.data in flask_app made the selector never select anything but the default -->
-    <script>
-        var els = document.getElementsByClassName("selectdefault");
-        for (i = 0; i < els.length; i++) {
-            els[i].value = els[i].getAttribute('value');
-        }
-    </script>
+    {% include 'footer.html' %}
 {% endblock %}
 

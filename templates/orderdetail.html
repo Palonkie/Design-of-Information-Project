@@ -29,6 +29,11 @@ Order Detail
           });
         });
     </script>
+    <script>
+        $('.navbar').affix({
+          offset: {top: 100}
+        });
+    </script>
 {% endblock %}
 
 {% block content %}
@@ -87,5 +92,6 @@ Order Detail
         {% endif %}
 
     </div> <!-- /container -->
+    {% include 'footer.html' %}
 {% endblock %}
 

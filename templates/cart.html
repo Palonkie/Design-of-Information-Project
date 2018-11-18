@@ -29,6 +29,11 @@ Cart
           });
         });
     </script>
+    <script>
+        $('.navbar').affix({
+          offset: {top: 100}
+        });
+    </script>
 {% endblock %}
 
 {% block content %}
@@ -95,5 +100,6 @@ Cart
         {% endif %}
 
     </div> <!-- /container -->
+    {% include 'footer.html' %}
 {% endblock %}
 

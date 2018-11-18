@@ -6,11 +6,27 @@ FMPortal
 
 {% block styles %}
 {{super()}}
-<link rel="stylesheet" href="{{url_for('.static', filename='starter-template.css')}}">
+<link rel="stylesheet" href="{{ url_for('.static', filename='css/common.css') }}">
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        $('.navbar').affix({
+          offset: {top: 100}
+        });
+    </script>
 {% endblock %}
 
 {% block content %}
-    <nav class="navbar navbar-inverse navbar-fixed-top">
+    <div class="above-nav">
+      <div class="container-fluid">
+          <img src="static/img/FMPortalBanner.jpg">
+      </div>
+    </div>
+
+    <div class="nav-wrapper" style="height:51px;"> <!-- Prevents content jump when navbar becomes fixed -->
+    <nav class="navbar navbar-inverse" role="navigation">
       <div class="container">
         <div class="navbar-header">
           <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
@@ -27,9 +43,10 @@ FMPortal
             <li><a href="{{ url_for('login') }}">Login</a></li>
             <li><a href="{{ url_for('register') }}">Register</a></li>
           </ul>
-        </div><!--/.nav-collapse -->
+        </div>
       </div>
     </nav>
+    </div>
 
     <div class="container">
 
@@ -40,4 +57,5 @@ FMPortal
       </div>
 
     </div><!-- /.container -->
+    {% include 'footer.html' %}
 {% endblock %}

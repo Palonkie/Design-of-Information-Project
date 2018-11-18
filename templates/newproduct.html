@@ -10,6 +10,15 @@ New Product
 <link rel="stylesheet" href="{{url_for('.static', filename='/css/common.css')}}">
 {% endblock %}
 
+{% block scripts %}
+{{super()}}
+    <script>
+        $('.navbar').affix({
+          offset: {top: 100}
+        });
+    </script>
+{% endblock %}
+
 {% block content %}
     {% include 'topnav.html' %}
 
@@ -33,4 +42,5 @@ New Product
         {% endif %}
         {% endwith %}
     </div> <!-- /container -->
+    {% include 'footer.html' %}
 {% endblock %}

@@ -30,6 +30,11 @@ Available
           });
         });
     </script>
+    <script>
+        $('.navbar').affix({
+          offset: {top: 100}
+        });
+    </script>
 {% endblock %}
 
 {% block content %}
@@ -83,4 +88,5 @@ Available
         </div>
         {% endif %}
     </div> <!-- /container -->
+    {% include 'footer.html' %}
 {% endblock %}
