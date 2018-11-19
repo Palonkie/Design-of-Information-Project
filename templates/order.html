@@ -40,7 +40,7 @@ Order
     {% include 'topnav.html' %}
 
     <div class="container">
-        <h2>Order Form</h2>
+        <h2 style="margin-top: 15px;">Order Form</h2>
         <table class="table">
             <tbody>
                 <tr>
@@ -90,7 +90,7 @@ Order
                             <strong>{{ item[1].description }}</strong><br>
                             {{ "$%.2f"|format(item[0].offerprice) }} {{ per}}{{ item[1].unit }}<br>
                             <small>{{ item[2].boothname }}</small></td>
-                        <td>&nbsp;<br>Available: {{ remaining }} {{item[1].unit}}{{ s }}</td>
+                        <td>&nbsp;<br>Available: {{ remaining|int if remaining == remaining|int else remaining }} {{item[1].unit}}{{ s }}</td>
                         <td>&nbsp;<br><a href="{{ url_for('orderitem', id=item[0].offerID) }}" class="btn btn-primary btn-sm">Place Order</a></td>
                     </tr>
                 {% endfor %}

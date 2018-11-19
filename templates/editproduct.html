@@ -41,8 +41,8 @@ Edit Product
     {% include 'topnav.html' %}
 
     <div class="container">
-      <form class="form-md" method="POST" action="/editproduct">
-        <h2>Edit product</h2>
+      <form class="form-md" style="padding-bottom: 0px;" method="POST" action="/editproduct">
+        <h2 style="margin-top: 0px;">Edit product</h2>
         {{ formselect.hidden_tag() }}
         <!-- select field is auto-submitted using jQuery script - note that this select name is "product", which the script looks for -->
         {{ wtf.form_field(formselect.product, class="selectdefault form-control", value=id) }}
@@ -50,7 +50,7 @@ Edit Product
         <input id="submitselect" name="submitselect" type="submit" value="Select" hidden="hidden">
       </form>
 
-      <form class="form-md" method="POST" action="/editproduct/{{ id }}">
+      <form class="form-md" style="padding-top: 0px;" method="POST" action="/editproduct/{{ id }}">
         {{ form.hidden_tag() }}
         {{ wtf.form_field(form.description) }}
         {{ wtf.form_field(form.unit) }}

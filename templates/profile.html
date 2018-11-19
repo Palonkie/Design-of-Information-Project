@@ -26,8 +26,8 @@ Edit Profile
 
         <div class="row">
             <div class="col-lg-7">
-                <form class="form-md" method="POST" action="/profile">
-                    <h2 class="form-login-heading">Edit your profile</h2>
+                <form class="form-md" style="margin-right: 0px;" method="POST" action="/profile">
+                    <h2 style="margin-top: 0px;">Edit your profile</h2>
                     {{ form.hidden_tag() }}
                     {{ wtf.form_field(form.email) }}
                     {{ wtf.form_field(form.name) }}
@@ -41,8 +41,8 @@ Edit Profile
             </div>
             <div class="col-lg-1"></div>
             <div class="col-lg-4">
-                <form class="form-md" method="POST" enctype="multipart/form-data" action="/profile">
-                    <h2 class="form-login-heading">Upload your photo<br>(.jpg or .jpeg only)</h2>
+                <form class="form-md" style="margin-left: 0px;" method="POST" enctype="multipart/form-data" action="/profile">
+                    <h2 style="margin-top: 0px;">Upload your photo<br>(.jpg or .jpeg only)</h2>
                     {{ formphoto.hidden_tag() }}
                     <div class="form-group">
                         {{ formphoto.photo }}

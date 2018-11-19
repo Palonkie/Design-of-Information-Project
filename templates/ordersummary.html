@@ -40,7 +40,7 @@ Order Summary
     {% include 'topnav.html' %}
 
     <div class="container">
-        <h2>Order Summary</h2>
+        <h2 style="margin-top: 15px;">Order Summary</h2>
         <table class="table">
             <tbody>
                 <tr>
@@ -62,25 +62,25 @@ Order Summary
         <table class="table table-bordered">
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Sell-by unit</th>
-                <th>Initial quantity</th>
-                <th>Reserved quantity</th>
-                <th>Wish list quantity</th>
-                <th>Unit price</th>
-                <th>Total</th>
+                <th class="centerText">Product</th>
+                <th class="centerText">Sell-by unit</th>
+                <th class="centerText">Initial quantity</th>
+                <th class="centerText">Reserved quantity</th>
+                <th class="centerText">Wish list quantity</th>
+                <th class="centerText">Unit price</th>
+                <th class="centerText">Total</th>
               </tr>
             </thead>
             <tbody>
                 {% for item in summarylist %}
                 <tr>
-                    <td>{{ item.description }}</td>
-                    <td>{{ item.unit }}</td>
-                    <td>{{ item.initial }}</td>
-                    <td>{{ item.quantity }}</td>
-                    <td>{{ item.wishlist }}</td>
-                    <td>{{ "$%.2f"|format(item.offerprice) }}</td>
-                    <td>{{ "$%.2f"|format(item.itemtotal) }}</td>
+                    <td class="centerText">{{ item.description }}</td>
+                    <td class="centerText">{{ item.unit }}</td>
+                    <td class="centerText">{{ item.initial|int if item.initial == item.initial|int else item.initial }}</td>
+                    <td class="centerText">{{ item.quantity|int if item.quantity == item.quantity|int else item.quantity }}</td>
+                    <td class="centerText">{{ item.wishlist|int if item.wishlist == item.wishlist|int else item.wishlist }}</td>
+                    <td class="centerText">{{ "$%.2f"|format(item.offerprice) }}</td>
+                    <td class="centerText">{{ "$%.2f"|format(item.itemtotal) }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

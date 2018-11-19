@@ -43,7 +43,7 @@ Available
     <div class="container">
         <h2 class="form-md">Enter products available to sell</h2>
 
-        <form class="form-md" method="POST" action="{{ url_for('available') }}">
+        <form class="form-md" style="padding-top: 0px; padding-bottom: 0px;" method="POST" action="{{ url_for('available') }}">
             {{ formdate.csrf_token }}
             <!-- select field is auto-submitted using jQuery script - note that this select name is "date", which the script looks for -->
             <strong>{{ formdate.date.label }}</strong>
@@ -74,7 +74,7 @@ Available
                     <tr>
                         <td><strong>{{ item.description }}</strong></td>
                         <td>{{ "$%.2f"|format(item[0].offerprice) }} {{ per }}{{ item.unit }}</td>
-                        <td>Initial quantity: {{ item[0].quantity }} {{item.unit}}{{ s }}</td>
+                        <td>Initial quantity: {{ item[0].quantity|int if item[0].quantity == item[0].quantity|int else item[0].quantity }} {{item.unit}}{{ s }}</td>
                         <td>
                             <a href="{{ url_for('editavailable', id=item[0].offerID) }}" class="btn btn-primary btn-sm">Update</a>
                         </td>

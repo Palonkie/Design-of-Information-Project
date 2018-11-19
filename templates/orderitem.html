@@ -24,7 +24,7 @@ Order Item
 
     <div class="container">
 
-        <h2 class="form-available-heading">Order an item</h2>
+        <h2 style="margin-top: 15px;">Order an item</h2>
 
         <table class="table">
             <tbody>
@@ -37,7 +37,7 @@ Order Item
                     </td>
                     <td>
                         &nbsp;<br>
-                        Available: {{ remaining }} of {{ available.quantity }} {{product.unit}}s<br>
+                        Available: {{ remaining|int if remaining == remaining|int else remaining }} of {{ available.quantity|int if available.quantity == available.quantity|int else available.quantity }} {{product.unit}}s<br>
                         For purchase on: <strong>{{ available.day.strftime('%a %b %d') }}</strong>
                     </td>
                     <td>
@@ -46,9 +46,9 @@ Order Item
                             {{ form.csrf_token }}
                             {{ form.offerid(value=available.offerID) }}
                             {% if remaining > 0 %}
-                            Quantity: {{ form.quantity(class='form-control', type='number', min=1, max=remaining, step=1, value=1) }} {{ product.unit }}
+                            Quantity: {{ form.quantity(class='form-control', type='number', min=1, max=remaining, step=1, value=1) }} {{ product.unit }} &nbsp; &nbsp;
                             {% else %}
-                            Wishlist: {{ form.wishlist(class='form-control', type='number', min=1, step=1, value=1) }} {{ product.unit }}
+                            Wishlist: {{ form.wishlist(class='form-control', type='number', min=1, step=1, value=1) }} {{ product.unit }} &nbsp; &nbsp;
                             {% endif %}
                             <button type="submit" class="btn btn-primary">Place order</button>
                         </form>

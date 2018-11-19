@@ -21,7 +21,9 @@ FMPortal
 {% block content %}
     <div class="above-nav">
       <div class="container-fluid">
-          <img src="static/img/FMPortalBanner.jpg">
+          <div class="row">
+          <img class="img-responsive" style="min-height: 100px;" src="/static/img/FMPortalBanner.jpg">
+          </div>
       </div>
     </div>
 
@@ -29,13 +31,7 @@ FMPortal
     <nav class="navbar navbar-inverse" role="navigation">
       <div class="container">
         <div class="navbar-header">
-          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          <a class="navbar-brand" href="#">Farmers Market Portal</a>
+          <a class="navbar-brand" href="#">Blacksburg Farmers Market Portal</a>
         </div>
         <div id="navbar" class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
@@ -52,8 +48,10 @@ FMPortal
 
       <div class="starter-template">
         <h1>Welcome to the Blacksburg Farmers Market Portal</h1>
-        <p class="lead">Please log in if you have an account</p>
-        <p class="lead">or register if you are new to the portal.</p>
+        <span class="lead">
+            Please log in if you have an account<br>
+            or register if you are new to the portal.
+        </span>
       </div>
 
     </div><!-- /.container -->

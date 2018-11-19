@@ -25,7 +25,7 @@ Edit Available
     <div class="container">
 
         <form class="form-md" method="POST" action="/editavailable/{{ id }}">
-            <h2>Edit an available product</h2>
+            <h2 style="margin-top: 0px;">Edit an available product</h2>
             {{ form.csrf_token }}
             {{ form.offerid }}
             {{ wtf.form_field(form.date, disabled=True) }}

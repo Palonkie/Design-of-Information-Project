@@ -24,7 +24,7 @@ New Product
 
     <div class="container">
         <form class="form-md" method="POST" action="/newproduct">
-            <h2 class="form-login-heading">Enter a new product</h2>
+            <h2 style="margin-top: 0px;">Enter a new product</h2>
             {{ form.hidden_tag() }}
             {{ wtf.form_field(form.description) }}
             {{ wtf.form_field(form.unit) }}
