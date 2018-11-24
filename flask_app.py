@@ -11,6 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_uploads import UploadSet, configure_uploads
 from PIL import Image
+from flask_mail import Mail, Message
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'Ohhhhh! Spooky because it is secret!'
@@ -38,6 +39,20 @@ photos = UploadSet('photos', extensions=('jpg', 'jpeg'))
 
 app.config['UPLOADED_PHOTOS_DEST'] = 'mysite/static/img'
 configure_uploads(app, photos)
+
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
+#app.config['MAIL_DEBUG'] = True
+app.config['MAIL_USERNAME'] = 'fmportalvt@gmail.com'
+app.config['MAIL_PASSWORD'] = 'owhbwpttaatlzisf'
+app.config['MAIL_DEFAULT_SENDER'] = 'Blacksburg Farmers Market Portal <fmportalvt@gmail.com>'
+app.config['MAIL_MAX_EMAILS'] = None
+#app.config['MAIL_SUPPRESS_SEND'] = False
+app.config['MAIL_ASCII_ATTACHMENTS'] = False
+
+mail = Mail(app)
 
 # open on Wednesdays and Saturdays
 OPENDAYS = [2, 5]
@@ -697,6 +712,76 @@ def producterror():
     if request.method == 'POST':
         return redirect(url_for('order'))
     return render_template('producterror.html', usertype=current_user.usertype)
+
+@app.route('/emailcart')
+@login_required
+def emailcart():
+    user = User.query.filter_by(username=current_user.username).first()
+    dayalt = datetime.datetime.strptime(session['day'],'%Y-%m-%d').strftime('%A %B %d, %Y')
+    month = datetime.datetime.strptime(session['day'],'%Y-%m-%d').month
+    weekday = datetime.datetime.strptime(session['day'],'%Y-%m-%d').weekday()
+    if month in [4,5,6,7,8,9,10]:
+        if weekday > 4:
+            hours = "8am - 2pm"
+        else:
+            hours = "Noon - 6pm"
+    elif month in [11,12]:
+        if weekday > 4:
+            hours = "9am - 2pm"
+        else:
+            hours = "Noon - 6pm"
+    else:
+        if weekday > 4:
+            hours = "10am - 2pm"
+        else:
+            hours = "Noon - 6pm"
+
+    q = (db.session.query(OrderTbl, Available, Product, User)
+        .join(Available, OrderTbl.offerID==Available.offerID)
+        .join(Product, Available.productID==Product.productID)
+        .join(User, Available.sellerID==User.id)
+        .filter(OrderTbl.custID==user.id, OrderTbl.isDeleted==False, Available.day==session['day'])
+        .all())
+    # above returns a list of tuples of the table row objects
+    # e.g. [(<OrderTbl 1>, <Available 1>, <Product 2>, <User 1>), (<OrderTbl 3>, <Available 6>, <Product 3>, <User 2>), ... ]
+
+    msg = Message(recipients=[user.email])
+    msg.subject = "Blacksburg Farmers Market Order - " + dayalt
+
+    msg.html = "<img src='http://fmportal.pythonanywhere.com/static/img/fmLogo.png' /> &nbsp; <img src='http://fmportal.pythonanywhere.com/static/img/fmMailBanner.png' /><br><br>"
+
+    msg.html = msg.html + "Hi " + user.name + ",<br><br>"
+    msg.html = msg.html + "Thanks for ordering items at the Blacksburg Farmers Market on <strong>" + dayalt + "</strong><br><br>"
+    msg.html = msg.html + "Here is a summary of your order.<br><br>"
+    msg.html = msg.html + "<table style='border: 1px solid black; border-collapse: collapse;'>"
+
+    carttotal = 0
+    for item in q:
+        itemtotal = item[0].quantity * item[1].offerprice
+        carttotal = carttotal + itemtotal
+        if item[2].unit.lower()[:2] == "ea":
+            s = ""
+            per = ""
+        else:
+            s = "s"
+            per = "per "
+
+        msg.html = msg.html + "<tr style='border: 1px solid black; border-collapse: collapse;'>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse;'><img src='http://fmportal.pythonanywhere.com/static/img/P" + str(item[2].productID) + ".png' onerror='http://fmportal.pythonanywhere.com/static/img/defaultproduct.png' /></td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + item[2].description + "</td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + str(item[0].quantity) + " " + item[2].unit + s + "@ " + "${:.2f}".format(item[1].offerprice) + " " + per + item[2].unit + "<br><br>"
+        msg.html = msg.html + "Item total = <strong>" + "${:.2f}".format(itemtotal) + "</strong></td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'><strong>" + item[3].boothname + "</strong><br>" + item[3].name + "<br>" + item[3].telephone + "</td></tr>"
+
+    msg.html = msg.html + "</table><br>"
+    msg.html = msg.html + "Your total for all ordered items is <strong>" + "${:.2f}".format(carttotal) + "</strong><br><br>"
+    msg.html = msg.html + "We look forward to seeing you on " + dayalt + ". Remember that our hours that day are <strong>" + hours + "</strong>.<br>"
+    msg.html = msg.html + "When you arrive, please look for vendor's names on the signs on the front of their tables or above their booths.<br><hr><br>"
+    msg.html = msg.html + "<a href='http://blacksburgfarmersmarket.com/'>Blacksburg Farmers Market</a> - <a href='https://www.google.com/maps/d/viewer?mid=1MX2R9crBm_cUD8yoACS_z_K-uCU&ll=37.22836360418549%2C-80.41460575000002&z=19'>100 Draper Rd NW, Blacksburg, VA 24060</a>"
+
+    mail.send(msg)
+
+    return "Message has been sent"
 
 @app.route('/test', methods=["GET"])
 def test():
