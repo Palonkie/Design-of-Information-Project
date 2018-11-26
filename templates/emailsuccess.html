@@ -1,0 +1,38 @@
+{% extends "bootstrap/base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}
+Not Seller
+{% endblock %}
+
+{% block styles %}
+{{super()}}
+<link rel="stylesheet" href="{{url_for('.static', filename='css/common.css')}}">
+{% endblock %}
+
+{% block scripts %}
+{{super()}}
+    <script>
+        $('.navbar').affix({
+          offset: {top: 100}
+        });
+    </script>
+{% endblock %}
+
+{% block content %}
+    {% include 'topnav.html' %}
+
+    <div class="container">
+        <h2>Sending email</h2>
+
+        <div class="alert alert-success" role="alert">
+                Your email was sent successfully!
+        </div>
+
+      <form class="form-group" method="POST" action="/emailsuccess">
+        <button class="btn btn-lg btn-primary btn-block" type="submit">Return to order page</button>
+      </form>
+
+    </div> <!-- /container -->
+    {% include 'footer.html' %}
+{% endblock %}

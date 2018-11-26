@@ -781,7 +781,14 @@ def emailcart():
 
     mail.send(msg)
 
-    return "Message has been sent"
+    return redirect(url_for('emailsuccess'))
+
+@app.route('/emailsuccess', methods=["GET", "POST"])
+@login_required
+def emailsuccess():
+    if request.method == 'POST':
+        return redirect(url_for('order'))
+    return render_template('emailsuccess.html')
 
 @app.route('/test', methods=["GET"])
 def test():

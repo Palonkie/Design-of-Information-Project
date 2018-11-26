@@ -44,7 +44,7 @@ Cart
         <table class="table">
             <tbody>
                 <tr>
-                    <td>
+                    <td style="width: 400px;">
                          <form class="form-inline" method="POST" action="{{ url_for('cart') }}">
                             {{ formdate.csrf_token }}
                             <!-- select field is auto-submitted using jQuery script - note that this select name is "date", which the script looks for -->
@@ -53,6 +53,7 @@ Cart
                             {{ formdate.submitdate(hidden="hidden") }}
                         </form>
                     </td>
+                    <td><a class="btn btn-primary" href="{{ url_for('emailcart') }}">Send list to my email</a></td>
                 </tr>
             </tbody>
         </table>
