@@ -46,7 +46,19 @@ Register
     </nav>
     </div>
 
+
+
     <div class="container">
+
+        {% with messages = get_flashed_messages(category_filter=['error']) %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-warning" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
 
       <form class="form-login" method="POST" action="/register">
         <h2 class="form-login-heading">Please Register</h2>

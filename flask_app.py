@@ -68,7 +68,7 @@ class User(UserMixin, db.Model):
     __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True)
-    email = db.Column(db.String(100), unique=True)
+    email = db.Column(db.String(100))
     password = db.Column(db.String(80))
     name = db.Column(db.String(80))
     telephone = db.Column(db.String(20))
@@ -134,7 +134,7 @@ class ProfileForm(FlaskForm):
     submit = SubmitField('Save profile data')
 
 class NewProductForm(FlaskForm):
-    description = StringField('Product description', validators=[InputRequired(), Length(max=100)])
+    description = StringField('Product name', validators=[InputRequired(), Length(max=100)])
     unit = StringField('Sell-by unit', validators=[InputRequired(), Length(max=20)])
     unitprice = DecimalField('Price ($) per unit', validators=[InputRequired(), NumberRange(min=0)])
     submit = SubmitField('Save product information')
@@ -209,8 +209,12 @@ def register():
     if form.validate_on_submit():
         hashed_password = generate_password_hash(form.password.data, method='sha256')
         new_user = User(username=form.username.data, email=form.email.data, password=hashed_password, usertype=form.usertype.data, isActive=True, isLocked=False)
-        db.session.add(new_user)
-        db.session.commit()
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+        except:
+            flash('The Username or Email given has been used on a previous account', 'error')
+            return redirect(url_for('register'))
         return redirect(url_for('login'))
     return render_template('register.html', form=form)
 
@@ -351,7 +355,7 @@ def editproduct(id):
 
     products = Product.query.filter_by(sellerID=user.id).order_by(Product.description).all()
 
-    if products == None:
+    if products == []:
         return redirect(url_for('producterror'))
 
     productlist = [(p.productID, p.description) for p in products]
@@ -783,12 +787,194 @@ def emailcart():
 
     return redirect(url_for('emailsuccess'))
 
+@app.route('/emailsummary')
+@login_required
+def emailsummary():
+    user = User.query.filter_by(username=current_user.username).first()
+    dayalt = datetime.datetime.strptime(session['day'],'%Y-%m-%d').strftime('%A %B %d, %Y')
+    month = datetime.datetime.strptime(session['day'],'%Y-%m-%d').month
+    weekday = datetime.datetime.strptime(session['day'],'%Y-%m-%d').weekday()
+    if month in [4,5,6,7,8,9,10]:
+        if weekday > 4:
+            hours = "8am - 2pm"
+        else:
+            hours = "Noon - 6pm"
+    elif month in [11,12]:
+        if weekday > 4:
+            hours = "9am - 2pm"
+        else:
+            hours = "Noon - 6pm"
+    else:
+        if weekday > 4:
+            hours = "10am - 2pm"
+        else:
+            hours = "Noon - 6pm"
+
+    q = (db.session.query(
+        OrderTbl.quantity,
+        OrderTbl.wishlist,
+        Available.quantity.label('initial'),
+        Available.offerprice,
+        Product.productID,
+        Product.description,
+        Product.unit,
+        (OrderTbl.quantity * Available.offerprice).label('itemtotal'))
+        .join(Available, OrderTbl.offerID==Available.offerID)
+        .join(Product, Available.productID==Product.productID)
+        .filter(Available.sellerID==user.id, OrderTbl.isDeleted==False, Available.day==session['day'])
+        .subquery())
+
+    qq = (db.session.query(
+        db.func.sum(q.c.quantity).label('quantity'),
+        db.func.sum(q.c.wishlist).label('wishlist'),
+        q.c.initial,
+        q.c.offerprice,
+        q.c.productID,
+        q.c.description,
+        q.c.unit,
+        db.func.sum(q.c.itemtotal).label('itemtotal'))
+        .group_by(q.c.initial, q.c.offerprice, q.c.productID, q.c.description, q.c.unit)
+        .all())
+
+    msg = Message(recipients=[user.email])
+    msg.subject = "Blacksburg Farmers Market Reservation Summary - " + dayalt
+
+    msg.html = "<img src='http://fmportal.pythonanywhere.com/static/img/fmLogo.png' /> &nbsp; <img src='http://fmportal.pythonanywhere.com/static/img/fmMailBanner.png' /><br><br>"
+
+    msg.html = msg.html + "Hi " + user.name + ",<br><br>"
+    msg.html = msg.html + "Here is a summary of all your items that have been reserved for <strong>" + dayalt + "</strong><br><br>"
+    msg.html = msg.html + "<table style='border: 1px solid black; border-collapse: collapse;'>"
+    msg.html = msg.html + "<tr style='border: 1px solid black; border-collapse: collapse;'>"
+    msg.html = msg.html + "<th style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>Product</th>"
+    msg.html = msg.html + "<th style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>Sell-by unit</th>"
+    msg.html = msg.html + "<th style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>Initial quantity</th>"
+    msg.html = msg.html + "<th style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>Reserved quantity</th>"
+    msg.html = msg.html + "<th style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>Wish list quantity</th>"
+    msg.html = msg.html + "<th style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>Unit price</th>"
+    msg.html = msg.html + "<th style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>Total</th></tr>"
+
+    ordertotal = 0
+    for item in qq:
+        itemtotal = item.quantity * item.offerprice
+        ordertotal = ordertotal + itemtotal
+
+        msg.html = msg.html + "<tr style='border: 1px solid black; border-collapse: collapse;'>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + item.description + "</td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + item.unit + "</td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + str(item.initial) + "</td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + str(item.quantity) + "</td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + str(item.wishlist) + "</td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + "${:.2f}".format(item.offerprice) + "</td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + "${:.2f}".format(itemtotal) + "</td></tr>"
+
+    msg.html = msg.html + "</table><br>"
+    msg.html = msg.html + "Your total for all reserved items is <strong>" + "${:.2f}".format(ordertotal) + "</strong><br><br>"
+    msg.html = msg.html + "If there is any quantity in the wish list column, and you can bring more than your stated initial quantity,<br>"
+    msg.html = msg.html + "you will likely be able to sell the additional quantity in the wish list.<br><br>"
+    msg.html = msg.html + "We look forward to having you sell on " + dayalt + ". Remember that our hours that<br>"
+    msg.html = msg.html + "day are  <strong>" + hours + "</strong>.<br><hr><br>"
+    msg.html = msg.html + "<a href='http://blacksburgfarmersmarket.com/'>Blacksburg Farmers Market</a> - <a href='https://www.google.com/maps/d/viewer?mid=1MX2R9crBm_cUD8yoACS_z_K-uCU&ll=37.22836360418549%2C-80.41460575000002&z=19'>100 Draper Rd NW, Blacksburg, VA 24060</a>"
+
+    mail.send(msg)
+
+    return redirect(url_for('emailsuccesssumm'))
+
+@app.route('/emaildetail')
+@login_required
+def emaildetail():
+    user = User.query.filter_by(username=current_user.username).first()
+    dayalt = datetime.datetime.strptime(session['day'],'%Y-%m-%d').strftime('%A %B %d, %Y')
+    month = datetime.datetime.strptime(session['day'],'%Y-%m-%d').month
+    weekday = datetime.datetime.strptime(session['day'],'%Y-%m-%d').weekday()
+    if month in [4,5,6,7,8,9,10]:
+        if weekday > 4:
+            hours = "8am - 2pm"
+        else:
+            hours = "Noon - 6pm"
+    elif month in [11,12]:
+        if weekday > 4:
+            hours = "9am - 2pm"
+        else:
+            hours = "Noon - 6pm"
+    else:
+        if weekday > 4:
+            hours = "10am - 2pm"
+        else:
+            hours = "Noon - 6pm"
+
+    q = (db.session.query(
+        OrderTbl.quantity,
+        OrderTbl.wishlist,
+        Available.offerprice,
+        Product.description,
+        Product.unit,
+        (OrderTbl.quantity * Available.offerprice).label('itemtotal'),
+        User.name)
+        .join(Available, OrderTbl.offerID==Available.offerID)
+        .join(Product, Available.productID==Product.productID)
+        .join(User, OrderTbl.custID==User.id)
+        .filter(Available.sellerID==user.id, OrderTbl.isDeleted==False, Available.day==session['day'])
+        .all())
+
+    msg = Message(recipients=[user.email])
+    msg.subject = "Blacksburg Farmers Market Reservation Details - " + dayalt
+
+    msg.html = "<img src='http://fmportal.pythonanywhere.com/static/img/fmLogo.png' /> &nbsp; <img src='http://fmportal.pythonanywhere.com/static/img/fmMailBanner.png' /><br><br>"
+
+    msg.html = msg.html + "Hi " + user.name + ",<br><br>"
+    msg.html = msg.html + "Here is a detailed list of all the customers who have made reservations for your items and what they have<br>"
+    msg.html = msg.html + "reserved for <strong>" + dayalt + "</strong><br><br>"
+    msg.html = msg.html + "<table style='border: 1px solid black; border-collapse: collapse;'>"
+    msg.html = msg.html + "<tr style='border: 1px solid black; border-collapse: collapse;'>"
+    msg.html = msg.html + "<th style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>Customer</th>"
+    msg.html = msg.html + "<th style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>Product</th>"
+    msg.html = msg.html + "<th style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>Sell-by unit</th>"
+    msg.html = msg.html + "<th style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>Reserved quantity</th>"
+    msg.html = msg.html + "<th style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>Wish list quantity</th>"
+    msg.html = msg.html + "<th style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>Unit price</th>"
+    msg.html = msg.html + "<th style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>Total</th></tr>"
+
+    for item in q:
+        itemtotal = item.quantity * item.offerprice
+
+        msg.html = msg.html + "<tr style='border: 1px solid black; border-collapse: collapse;'>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + item.name + "</td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + item.description + "</td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + item.unit + "</td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + str(item.quantity) + "</td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + str(item.wishlist) + "</td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + "${:.2f}".format(item.offerprice) + "</td>"
+        msg.html = msg.html + "<td style='border: 1px solid black; border-collapse: collapse; padding: 15px;'>" + "${:.2f}".format(itemtotal) + "</td></tr>"
+
+    msg.html = msg.html + "</table><br>"
+    msg.html = msg.html + "We look forward to having you sell on " + dayalt + ". Remember that our hours that<br>"
+    msg.html = msg.html + "day are  <strong>" + hours + "</strong>.<br><hr><br>"
+    msg.html = msg.html + "<a href='http://blacksburgfarmersmarket.com/'>Blacksburg Farmers Market</a> - <a href='https://www.google.com/maps/d/viewer?mid=1MX2R9crBm_cUD8yoACS_z_K-uCU&ll=37.22836360418549%2C-80.41460575000002&z=19'>100 Draper Rd NW, Blacksburg, VA 24060</a>"
+
+    mail.send(msg)
+
+    return redirect(url_for('emailsuccessdet'))
+
 @app.route('/emailsuccess', methods=["GET", "POST"])
 @login_required
 def emailsuccess():
     if request.method == 'POST':
         return redirect(url_for('order'))
     return render_template('emailsuccess.html')
+
+@app.route('/emailsuccesssumm', methods=["GET", "POST"])
+@login_required
+def emailsuccesssumm():
+    if request.method == 'POST':
+        return redirect(url_for('ordersummary'))
+    return render_template('emailsuccesssumm.html')
+
+@app.route('/emailsuccessdet', methods=["GET", "POST"])
+@login_required
+def emailsuccessdet():
+    if request.method == 'POST':
+        return redirect(url_for('orderdetail'))
+    return render_template('emailsuccessdet.html')
 
 @app.route('/test', methods=["GET"])
 def test():
